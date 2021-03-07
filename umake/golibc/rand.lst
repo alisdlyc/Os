@@ -1,0 +1,33 @@
+     1                                  ; rand -  K&RÇ©ÇÁÇŸÇ⁄î≤êàÇµÇΩÇ‡ÇÃÇíPÇ…ASMâªÇµÇΩ
+     2                                  
+     3                                  ;[FORMAT "WCOFF"]
+     4                                  ;[INSTRSET "i486p"]
+     5                                  ;[OPTIMIZE 1]
+     6                                  ;[OPTION 1]
+     7                                  CPU 486
+     8                                  [BITS 32]
+     9                                  ;[FILE 'rand.nas']
+    10                                  GLOBAL _rand_seed
+    11                                  GLOBAL _rand
+    12                                  
+    13                                  [SECTION .data]
+    14                                  
+    15                                  			ALIGNB	4
+    16 00000000 01000000                _rand_seed	dd	1
+    17                                  
+    18                                  [SECTION .text]
+    19                                  
+    20                                  ; int rand(void)
+    21                                  
+    22                                  _rand:
+    23                                  
+    24 00000000 52                      	push	edx
+    25 00000001 3EA1[00000000]          	mov	eax,dword [ds:_rand_seed]
+    26 00000007 BA6D4EC641              	mov	edx,1103515245
+    27 0000000C F7E2                    	mul	edx
+    28 0000000E 0539300000              	add	eax,12345
+    29 00000013 3EA3[00000000]          	mov	dword [ds:_rand_seed],eax
+    30 00000019 C1E810                  	shr	eax,16
+    31 0000001C 5A                      	pop	edx
+    32 0000001D 25FF7F0000              	and	eax,07fffh
+    33 00000022 C3                      	ret

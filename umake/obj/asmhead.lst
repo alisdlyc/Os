@@ -1,0 +1,342 @@
+     1                                  ; haribote-os boot asm
+     2                                  ; TAB=4
+     3                                  
+     4                                  ;[INSTRSET "i486p"]  ;修改?里?成下句
+     5                                  CPU 486
+     6                                  ;extern bootmain
+     7                                  
+     8                                  VBEMODE	EQU		0x105			; 1024 x  768 x 8bitカラー
+     9                                  ; （画面モード一覧）
+    10                                  ;	0x100 :  640 x  400 x 8bitカラー
+    11                                  ;	0x101 :  640 x  480 x 8bitカラー
+    12                                  ;	0x103 :  800 x  600 x 8bitカラー
+    13                                  ;	0x105 : 1024 x  768 x 8bitカラー
+    14                                  ;	0x107 : 1280 x 1024 x 8bitカラー
+    15                                  
+    16                                  BOTPAK	EQU		0x00280000		; bootpackのロード先
+    17                                  DSKCAC	EQU		0x00100000		; ディスクキャッシュの場所
+    18                                  DSKCAC0	EQU		0x00008000		; ディスクキャッシュの場所（リアルモード）
+    19                                  
+    20                                  ; BOOT_INFO関係
+    21                                  CYLS	EQU		0x0ff0			; ブートセクタが設定する
+    22                                  LEDS	EQU		0x0ff1
+    23                                  VMODE	EQU		0x0ff2			; 色数に関する情報。何ビットカラーか？
+    24                                  SCRNX	EQU		0x0ff4			; 解像度のX
+    25                                  SCRNY	EQU		0x0ff6			; 解像度のY
+    26                                  VRAM	EQU		0x0ff8			; グラフィックバッファの開始番地
+    27                                  
+    28                                  		;ORG		0xc200			; 去掉?句，在?接的?候指定0xc200
+    29                                  [BITS 16]
+    30                                  ; VBE存在確認
+    31                                  
+    32 00000000 B80090                  		MOV		AX,0x9000
+    33 00000003 8EC0                    		MOV		ES,AX
+    34 00000005 BF0000                  		MOV		DI,0
+    35 00000008 B8004F                  		MOV		AX,0x4f00
+    36 0000000B CD10                    		INT		0x10
+    37 0000000D 83F84F                  		CMP		AX,0x004f
+    38 00000010 7552                    		JNE		scrn320
+    39                                  
+    40                                  ; VBEのバージョンチェック
+    41                                  
+    42 00000012 268B4504                		MOV		AX,[ES:DI+4]
+    43 00000016 3D0002                  		CMP		AX,0x0200
+    44 00000019 7249                    		JB		scrn320			; if (AX < 0x0200) goto scrn320
+    45                                  
+    46                                  ; 画面モード情報を得る
+    47                                  
+    48 0000001B B90501                  		MOV		CX,VBEMODE
+    49 0000001E B8014F                  		MOV		AX,0x4f01
+    50 00000021 CD10                    		INT		0x10
+    51 00000023 83F84F                  		CMP		AX,0x004f
+    52 00000026 753C                    		JNE		scrn320
+    53                                  
+    54                                  ; 画面モード情報の確認
+    55                                  
+    56 00000028 26807D1908              		CMP		BYTE [ES:DI+0x19],8
+    57 0000002D 7535                    		JNE		scrn320
+    58 0000002F 26807D1B04              		CMP		BYTE [ES:DI+0x1b],4
+    59 00000034 752E                    		JNE		scrn320
+    60 00000036 268B05                  		MOV		AX,[ES:DI+0x00]
+    61 00000039 258000                  		AND		AX,0x0080
+    62 0000003C 7426                    		JZ		scrn320			; モード属性のbit7が0だったのであきらめる
+    63                                  
+    64                                  ; 画面モードの切り替え
+    65                                  
+    66 0000003E BB0541                  		MOV		BX,VBEMODE+0x4000
+    67 00000041 B8024F                  		MOV		AX,0x4f02
+    68 00000044 CD10                    		INT		0x10
+    69 00000046 C606F20F08              		MOV		BYTE [VMODE],8	; 画面モードをメモする（C言語が参照する）
+    70 0000004B 268B4512                		MOV		AX,[ES:DI+0x12]
+    71 0000004F A3F40F                  		MOV		[SCRNX],AX
+    72 00000052 268B4514                		MOV		AX,[ES:DI+0x14]
+    73 00000056 A3F60F                  		MOV		[SCRNY],AX
+    74 00000059 26668B4528              		MOV		EAX,[ES:DI+0x28]
+    75 0000005E 66A3F80F                		MOV		[VRAM],EAX
+    76 00000062 EB20                    		JMP		keystatus
+    77                                  
+    78                                  scrn320:
+    79 00000064 B013                    		MOV		AL,0x13			; VGAグラフィックス、320x200x8bitカラー
+    80 00000066 B400                    		MOV		AH,0x00
+    81 00000068 CD10                    		INT		0x10
+    82 0000006A C606F20F08              		MOV		BYTE [VMODE],8	; 画面モードをメモする（C言語が参照する）
+    83 0000006F C706F40F4001            		MOV		WORD [SCRNX],320
+    84 00000075 C706F60FC800            		MOV		WORD [SCRNY],200
+    85 0000007B 66C706F80F00000A00      		MOV		DWORD [VRAM],0x000a0000
+    86                                  
+    87                                  ; キーボードのLED状態をBIOSに教えてもらう
+    88                                  
+    89                                  keystatus:
+    90 00000084 B402                    		MOV		AH,0x02
+    91 00000086 CD16                    		INT		0x16 			; keyboard BIOS
+    92 00000088 A2F10F                  		MOV		[LEDS],AL
+    93                                  
+    94                                  ; PICが一切の割り込みを受け付けないようにする
+    95                                  ;	AT互換機の仕様では、PICの初期化をするなら、
+    96                                  ;	こいつをCLI前にやっておかないと、たまにハングアップする
+    97                                  ;	PICの初期化はあとでやる
+    98                                  
+    99 0000008B B0FF                    		MOV		AL,0xff
+   100 0000008D E621                    		OUT		0x21,AL
+   101 0000008F 90                      		NOP						; OUT命令を連続させるとうまくいかない機種があるらしいので
+   102 00000090 E6A1                    		OUT		0xa1,AL
+   103                                  
+   104 00000092 FA                      		CLI						; さらにCPUレベルでも割り込み禁止
+   105                                  
+   106                                  ; CPUから1MB以上のメモリにアクセスできるように、A20GATEを設定
+   107                                  
+   108 00000093 E85601                  		CALL	waitkbdout
+   109 00000096 B0D1                    		MOV		AL,0xd1
+   110 00000098 E664                    		OUT		0x64,AL
+   111 0000009A E84F01                  		CALL	waitkbdout
+   112 0000009D B0DF                    		MOV		AL,0xdf			; enable A20
+   113 0000009F E660                    		OUT		0x60,AL
+   114 000000A1 E84801                  		CALL	waitkbdout
+   115                                  
+   116                                  ; プロテクトモード移行
+   117                                  
+   118 000000A4 0F0116[3202]            		LGDT	[GDTR0]			; 暫定GDTを設定
+   119 000000A9 0F20C0                  		MOV		EAX,CR0
+   120 000000AC 6625FFFFFF7F            		AND		EAX,0x7fffffff	; bit31を0にする（ページング禁止のため）
+   121 000000B2 6683C801                		OR		EAX,0x00000001	; bit0を1にする（プロテクトモード移行のため）
+   122 000000B6 0F22C0                  		MOV		CR0,EAX
+   123                                  		;JMP		DWORD 3*8:pipelineflush
+   124 000000B9 66EA[C1000000]1000      		JMP		DWORD 2*8:pipelineflush ;修改?里?制重?cs
+   125                                  
+   126                                  [BITS 32]
+   127                                  pipelineflush:
+   128 000000C1 66B80800                		MOV		AX,1*8			;  読み書き可能セグメント32bit
+   129 000000C5 8ED8                    		MOV		DS,AX
+   130 000000C7 8EC0                    		MOV		ES,AX
+   131 000000C9 8EE0                    		MOV		FS,AX
+   132 000000CB 8EE8                    		MOV		GS,AX
+   133 000000CD 8ED0                    		MOV		SS,AX
+   134                                  
+   135                                  ; bootpackの転送
+   136                                  
+   137 000000CF BE[40020000]            		MOV		ESI,bootpack	; 転送元
+   138 000000D4 BF00002800              		MOV		EDI,BOTPAK		; 転送先
+   139 000000D9 B900000200              		MOV		ECX,512*1024/4
+   140 000000DE E812010000              		CALL	memcpy
+   141                                  
+   142                                  ; ついでにディスクデータも本来の位置へ転送
+   143                                  
+   144                                  ; まずはブートセクタから
+   145                                  
+   146 000000E3 BE007C0000              		MOV		ESI,0x7c00		; 転送元
+   147 000000E8 BF00001000              		MOV		EDI,DSKCAC		; 転送先
+   148 000000ED B980000000              		MOV		ECX,512/4
+   149 000000F2 E8FE000000              		CALL	memcpy
+   150                                  
+   151                                  ; 残り全部
+   152                                  
+   153 000000F7 BE00820000              		MOV		ESI,DSKCAC0+512	; 転送元
+   154 000000FC BF00021000              		MOV		EDI,DSKCAC+512	; 転送先
+   155 00000101 B900000000              		MOV		ECX,0
+   156 00000106 8A0DF00F0000            		MOV		CL,BYTE [CYLS]
+   157                                  		;MOV     CL,0x9
+   158 0000010C 69C900120000            		IMUL	ECX,512*18*2/4	; シリンダ数からバイト数/4に変換
+   159 00000112 81E980000000            		SUB		ECX,512/4		; IPLの分だけ差し引く
+   160 00000118 E8D8000000              		CALL	memcpy
+   161                                  
+   162                                  ; asmheadでしなければいけないことは全部し終わったので、
+   163                                  ;	あとはbootpackに任せる
+   164                                  
+   165                                  ; bootpackの起動 ;修改原来作者?入bootpack的方法，?里需要解析elf
+   166                                  
+   167                                  		;MOV		EBX,BOTPAK
+   168                                  		;MOV		ECX,[EBX+16]
+   169                                  		;ADD		ECX,3			; ECX += 3;
+   170                                  		;SHR		ECX,2			; ECX /= 4;
+   171                                  		;JZ		skip			; 転送するべきものがない
+   172                                  		;MOV		ESI,[EBX+20]	; 転送元
+   173                                  		;ADD		ESI,EBX
+   174                                  		;MOV		EDI,[EBX+12]	; 転送先
+   175 0000011D E84C000000              		CALL		bootmain  ;?里会解析elf并把代??到0x280000，把数据?到0x310000
+   176                                  skip:
+   177                                  		;MOV		ESP,[EBX+12]	; スタック初期値
+   178                                  		;JMP		DWORD 2*8:0x0000001b
+   179 00000122 BC00003100              		MOV     	ESP,0x310000
+   180 00000127 BD00000000              		MOV			EBP,0x0
+   181                                  		;JMP		DWORD 2*8:0x0
+   182 0000012C E9(00002800)            		JMP			0x280000  ;skip?一段?定好esp，ebp,然后跳?到0x280000?始?行
+   183                                  
+   184                                  ;bootmain等同于下面的c程序
+   185                                  ;/* file header */
+   186                                  ;struct elfhdr {
+   187                                  ;    uint32_t e_magic;     // must equal ELF_MAGIC
+   188                                  ;    uint8_t e_elf[12];
+   189                                  ;    uint16_t e_type;      // 1=relocatable, 2=executable, 3=shared object, 4=core image
+   190                                  ;    uint16_t e_machine;   // 3=x86, 4=68K, etc.
+   191                                  ;    uint32_t e_version;   // file version, always 1
+   192                                  ;   uint32_t e_entry;     // entry point if executable
+   193                                  ;    uint32_t e_phoff;     // file position of program header or 0
+   194                                  ;    uint32_t e_shoff;     // file position of section header or 0
+   195                                  ;    uint32_t e_flags;     // architecture-specific flags, usually 0
+   196                                  ;    uint16_t e_ehsize;    // size of this elf header
+   197                                  ;    uint16_t e_phentsize; // size of an entry in program header
+   198                                  ;    uint16_t e_phnum;     // number of entries in program header or 0
+   199                                  ;    uint16_t e_shentsize; // size of an entry in section header
+   200                                  ;    uint16_t e_shnum;     // number of entries in section header or 0
+   201                                  ;    uint16_t e_shstrndx;  // section number that contains section name strings
+   202                                  ;};
+   203                                  ;
+   204                                  ;/* program section header */
+   205                                  ;struct proghdr {
+   206                                  ;    uint32_t p_type;   // loadable code or data, dynamic linking info,etc.
+   207                                  ;    uint32_t p_offset; // file offset of segment
+   208                                  ;    uint32_t p_va;     // virtual address to map segment
+   209                                  ;    uint32_t p_pa;     // physical address, not used
+   210                                  ;    uint32_t p_filesz; // size of segment in file
+   211                                  ;    uint32_t p_memsz;  // size of segment in memory (bigger if contains bss）
+   212                                  ;    uint32_t p_flags;  // read/write/execute bits
+   213                                  ;    uint32_t p_align;  // required alignment, invariably hardware page size
+   214                                  ;};
+   215                                  ;#define ELFHDR          ((struct elfhdr *)bootpack
+   216                                  ;static void *
+   217                                  ;memcpy2(void *dst, const void *src, size_t n) {
+   218                                  ;    const char *s = src;
+   219                                  ;    char *d = dst;
+   220                                  ;    while (n -- > 0) {
+   221                                  ;        *d ++ = *s ++;
+   222                                  ;    }
+   223                                  ;    return dst;
+   224                                  ;}
+   225                                  ;/* bootmain - the entry of bootloader */
+   226                                  ;void
+   227                                  ;bootmain(void) {
+   228                                  ;    if (ELFHDR->e_magic != ELF_MAGIC) {
+   229                                  ;        return ;
+   230                                  ;    }
+   231                                  ;
+   232                                  ;    struct proghdr *ph;
+   233                                  ;    // load each program segment
+   234                                  ;    ph = (struct proghdr *)((uintptr_t)ELFHDR + ELFHDR->e_phoff);
+   235                                  ;	memcpy2((void *)ph->p_va, (void *)ph->p_offset, ph->p_memsz);//代??入0x280000
+   236                                  ;	ph++;
+   237                                  ;	memcpy2((void *)ph->p_va, (void *)ph->p_offset, ph->p_memsz);//数据?入0x310000
+   238                                  ;}
+   239                                  
+   240                                  memcpy2:
+   241 00000131 55                      				push   ebp
+   242 00000132 89E5                                    mov    ebp,esp
+   243 00000134 83EC10                               	sub    esp,0x10
+   244 00000137 8B450C                               	mov    eax,DWORD [ebp+0xc]
+   245 0000013A 8945FC                               	mov    DWORD [ebp-0x4],eax
+   246 0000013D 8B4508                               	mov    eax,DWORD [ebp+0x8]
+   247 00000140 8945F8                               	mov    DWORD [ebp-0x8],eax
+   248 00000143 EB17                                    jmp    lable2b
+   249 00000145 8B45F8                    lable14:             	mov    eax,DWORD [ebp-0x8]
+   250 00000148 8D5001                                 	lea    edx,[eax+0x1]
+   251 0000014B 8955F8                                 	mov    DWORD [ebp-0x8],edx
+   252 0000014E 8B55FC                                 	mov    edx,DWORD [ebp-0x4]
+   253 00000151 8D4A01                                 	lea    ecx,[edx+0x1]
+   254 00000154 894DFC                                 	mov    DWORD [ebp-0x4],ecx
+   255 00000157 0FB612                                 	movzx  edx,BYTE [edx]
+   256 0000015A 8810                                   	mov    BYTE [eax],dl
+   257 0000015C 8B4510                    lable2b:	             	mov    eax,DWORD [ebp+0x10]
+   258 0000015F 8D50FF                                	lea    edx,[eax-0x1]
+   259 00000162 895510                                	mov    DWORD [ebp+0x10],edx
+   260 00000165 85C0                                  	test   eax,eax
+   261 00000167 75DC                                  	jne    lable14
+   262 00000169 8B4508                                	mov    eax,DWORD [ebp+0x8]
+   263 0000016C C9                                    	leave  
+   264 0000016D C3                                    	ret    
+   265                                  
+   266                                  bootmain:
+   267 0000016E 55                               push   ebp
+   268 0000016F 89E5                             mov    ebp,esp
+   269 00000171 83EC1C                           sub    esp,0x1c
+   270 00000174 B8[40020000]                     mov    eax,bootpack
+   271 00000179 8B00                             mov    eax,DWORD [eax]
+   272 0000017B 3D7F454C46                       cmp    eax,0x464c457f
+   273 00000180 7402                             je     lable53
+   274 00000182 EB66                             jmp    lablec3
+   275 00000184 B8[40020000]              lable53:       	mov    eax,bootpack
+   276 00000189 8B401C                         	mov    eax,DWORD [eax+0x1c]
+   277 0000018C 05[40020000]                   	add    eax,bootpack
+   278 00000191 8945FC                         	mov    DWORD [ebp-0x4],eax
+   279 00000194 8B45FC                         	mov    eax,DWORD [ebp-0x4]
+   280 00000197 8B4814                         	mov    ecx,DWORD [eax+0x14]
+   281 0000019A 8B45FC                         	mov    eax,DWORD [ebp-0x4]
+   282 0000019D 8B4004                         	mov    eax,DWORD [eax+0x4]
+   283 000001A0 05[40020000]                   	add    eax,bootpack
+   284 000001A5 89C2                           	mov    edx,eax
+   285 000001A7 8B45FC                         	mov    eax,DWORD [ebp-0x4]
+   286 000001AA 8B4008                         	mov    eax,DWORD [eax+0x8]
+   287                                         	;add    eax,0x280000
+   288 000001AD 894C2408                       	mov    DWORD [esp+0x8],ecx
+   289 000001B1 89542404                       	mov    DWORD [esp+0x4],edx
+   290 000001B5 890424                         	mov    DWORD [esp],eax
+   291 000001B8 E874FFFFFF                     	call   memcpy2
+   292 000001BD 8345FC20                       	add    DWORD [ebp-0x4],0x20
+   293 000001C1 8B45FC                         	mov    eax,DWORD [ebp-0x4]
+   294 000001C4 8B4814                         	mov    ecx,DWORD [eax+0x14]
+   295 000001C7 8B45FC                         	mov    eax,DWORD [ebp-0x4]
+   296 000001CA 8B4004                         	mov    eax,DWORD [eax+0x4]
+   297 000001CD 05[40020000]                   	add    eax,bootpack
+   298 000001D2 89C2                           	mov    edx,eax
+   299 000001D4 8B45FC                         	mov    eax,DWORD [ebp-0x4]
+   300 000001D7 8B4008                         	mov    eax,DWORD [eax+0x8]
+   301                                         	;add    eax,0x310000
+   302 000001DA 894C2408                       	mov    DWORD [esp+0x8],ecx
+   303 000001DE 89542404                       	mov    DWORD [esp+0x4],edx
+   304 000001E2 890424                         	mov    DWORD [esp],eax
+   305 000001E5 E847FFFFFF                     	call   memcpy2
+   306 000001EA C9                        lablec3:	                   	leave  
+   307 000001EB C3                                         	ret    
+   308                                  
+   309                                  
+   310                                  
+   311                                  waitkbdout:
+   312 000001EC E464                    		IN		 AL,0x64
+   313 000001EE 2402                    		AND		 AL,0x02
+   314 000001F0 E460                    		IN		 AL,0x60 		; から読み(受信バッファが悪さをしないように)
+   315 000001F2 75F8                    		JNZ		waitkbdout		; ANDの結果が0でなければwaitkbdoutへ
+   316 000001F4 C3                      		RET
+   317                                  
+   318                                  memcpy:
+   319 000001F5 8B06                    		MOV		EAX,[ESI]
+   320 000001F7 83C604                  		ADD		ESI,4
+   321 000001FA 8907                    		MOV		[EDI],EAX
+   322 000001FC 83C704                  		ADD		EDI,4
+   323 000001FF 83E901                  		SUB		ECX,1
+   324 00000202 75F1                    		JNZ		memcpy			; 引き算した結果が0でなければmemcpyへ
+   325 00000204 C3                      		RET
+   326                                  ; memcpyはアドレスサイズプリフィクスを入れ忘れなければ、ストリング命令でも書ける
+   327                                  
+   328 00000205 <res Bh>                		ALIGNB	16
+   329                                  GDT0:
+   330 00000210 ????????????????        		RESB	8				; ヌルセレクタ
+   330          ******************       warning: uninitialized space declared in non-BSS section `.text': zeroing [-w+zeroing]
+   331 00000218 FFFF00000092CF00        		DW		0xffff,0x0000,0x9200,0x00cf	; 読み書き可能セグメント32bit
+   332 00000220 FFFF0000009ACF00        		DW		0xffff,0x0000,0x9a00,0x00cf	; 実行可能セグメント32bit（bootpack用）
+   333 00000228 FFFF0000009A4F00        		DW      0xffff,0x0000,0x9a00,0x004f ;???cs用，加?成功后就不用了
+   334                                  
+   335 00000230 0000                    		DW		0
+   336                                  GDTR0:
+   337 00000232 1F00                    		DW		8*4-1
+   338 00000234 [10020000]              		DD		GDT0
+   339                                  
+   340 00000238 ????????????????        		ALIGNB	16
+   341                                  bootpack:

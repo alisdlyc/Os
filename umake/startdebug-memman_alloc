@@ -1,0 +1,4 @@
+rm debuginfo/30days-memman_alloc.txt
+make debug-memman_alloc
+
+

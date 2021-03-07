@@ -1,0 +1,7 @@
+cd golibc
+rm *.o
+make ALL
+cp rand.no rand.o
+ar crv lib30day.a *.o
+cp lib30day.a ..
+cd ..

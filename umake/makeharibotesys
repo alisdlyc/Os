@@ -1,0 +1,6 @@
+./makeasmhead
+./makegolibc
+./makebootpack
+rm bin/haribote.sys
+cat bin/asmhead.bin bin/bootpack.out > bin/haribote.sys
+

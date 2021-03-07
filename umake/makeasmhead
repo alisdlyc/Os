@@ -1,0 +1,7 @@
+nasm ipl09.nas -o bin/ipl09.bin -l obj/ipl09.lst
+
+nasm -g asmhead.nas -f elf32 -l obj/asmhead.lst -o obj/asmhead.o
+ld -m elf_i386 -nostdlib -N -T tools/boot.ld obj/asmhead.o -o bin/asmhead.out
+objdump -S bin/asmhead.out > obj/asmhead.asm
+objcopy -S -O binary bin/asmhead.out bin/asmhead.bin
+objdump -t bin/asmhead.out | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > obj/asmhead.sym

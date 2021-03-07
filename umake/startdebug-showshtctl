@@ -1,0 +1,4 @@
+rm debuginfo/30days-showshtctl.txt
+make debug-showshtctl
+
+

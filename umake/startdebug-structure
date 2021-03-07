@@ -1,0 +1,4 @@
+rm debuginfo/30days-structure.txt
+make debug-structure
+
+

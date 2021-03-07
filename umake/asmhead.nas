@@ -1,0 +1,341 @@
+; haribote-os boot asm
+; TAB=4
+
+;[INSTRSET "i486p"]  ;修改?里?成下句
+CPU 486
+;extern bootmain
+
+VBEMODE	EQU		0x105			; 1024 x  768 x 8bitカラー
+; （画面モード一覧）
+;	0x100 :  640 x  400 x 8bitカラー
+;	0x101 :  640 x  480 x 8bitカラー
+;	0x103 :  800 x  600 x 8bitカラー
+;	0x105 : 1024 x  768 x 8bitカラー
+;	0x107 : 1280 x 1024 x 8bitカラー
+
+BOTPAK	EQU		0x00280000		; bootpackのロード先
+DSKCAC	EQU		0x00100000		; ディスクキャッシュの場所
+DSKCAC0	EQU		0x00008000		; ディスクキャッシュの場所（リアルモード）
+
+; BOOT_INFO関係
+CYLS	EQU		0x0ff0			; ブートセクタが設定する
+LEDS	EQU		0x0ff1
+VMODE	EQU		0x0ff2			; 色数に関する情報。何ビットカラーか？
+SCRNX	EQU		0x0ff4			; 解像度のX
+SCRNY	EQU		0x0ff6			; 解像度のY
+VRAM	EQU		0x0ff8			; グラフィックバッファの開始番地
+
+		;ORG		0xc200			; 去掉?句，在?接的?候指定0xc200
+[BITS 16]
+; VBE存在確認
+
+		MOV		AX,0x9000
+		MOV		ES,AX
+		MOV		DI,0
+		MOV		AX,0x4f00
+		INT		0x10
+		CMP		AX,0x004f
+		JNE		scrn320
+
+; VBEのバージョンチェック
+
+		MOV		AX,[ES:DI+4]
+		CMP		AX,0x0200
+		JB		scrn320			; if (AX < 0x0200) goto scrn320
+
+; 画面モード情報を得る
+
+		MOV		CX,VBEMODE
+		MOV		AX,0x4f01
+		INT		0x10
+		CMP		AX,0x004f
+		JNE		scrn320
+
+; 画面モード情報の確認
+
+		CMP		BYTE [ES:DI+0x19],8
+		JNE		scrn320
+		CMP		BYTE [ES:DI+0x1b],4
+		JNE		scrn320
+		MOV		AX,[ES:DI+0x00]
+		AND		AX,0x0080
+		JZ		scrn320			; モード属性のbit7が0だったのであきらめる
+
+; 画面モードの切り替え
+
+		MOV		BX,VBEMODE+0x4000
+		MOV		AX,0x4f02
+		INT		0x10
+		MOV		BYTE [VMODE],8	; 画面モードをメモする（C言語が参照する）
+		MOV		AX,[ES:DI+0x12]
+		MOV		[SCRNX],AX
+		MOV		AX,[ES:DI+0x14]
+		MOV		[SCRNY],AX
+		MOV		EAX,[ES:DI+0x28]
+		MOV		[VRAM],EAX
+		JMP		keystatus
+
+scrn320:
+		MOV		AL,0x13			; VGAグラフィックス、320x200x8bitカラー
+		MOV		AH,0x00
+		INT		0x10
+		MOV		BYTE [VMODE],8	; 画面モードをメモする（C言語が参照する）
+		MOV		WORD [SCRNX],320
+		MOV		WORD [SCRNY],200
+		MOV		DWORD [VRAM],0x000a0000
+
+; キーボードのLED状態をBIOSに教えてもらう
+
+keystatus:
+		MOV		AH,0x02
+		INT		0x16 			; keyboard BIOS
+		MOV		[LEDS],AL
+
+; PICが一切の割り込みを受け付けないようにする
+;	AT互換機の仕様では、PICの初期化をするなら、
+;	こいつをCLI前にやっておかないと、たまにハングアップする
+;	PICの初期化はあとでやる
+
+		MOV		AL,0xff
+		OUT		0x21,AL
+		NOP						; OUT命令を連続させるとうまくいかない機種があるらしいので
+		OUT		0xa1,AL
+
+		CLI						; さらにCPUレベルでも割り込み禁止
+
+; CPUから1MB以上のメモリにアクセスできるように、A20GATEを設定
+
+		CALL	waitkbdout
+		MOV		AL,0xd1
+		OUT		0x64,AL
+		CALL	waitkbdout
+		MOV		AL,0xdf			; enable A20
+		OUT		0x60,AL
+		CALL	waitkbdout
+
+; プロテクトモード移行
+
+		LGDT	[GDTR0]			; 暫定GDTを設定
+		MOV		EAX,CR0
+		AND		EAX,0x7fffffff	; bit31を0にする（ページング禁止のため）
+		OR		EAX,0x00000001	; bit0を1にする（プロテクトモード移行のため）
+		MOV		CR0,EAX
+		;JMP		DWORD 3*8:pipelineflush
+		JMP		DWORD 2*8:pipelineflush ;修改?里?制重?cs
+
+[BITS 32]
+pipelineflush:
+		MOV		AX,1*8			;  読み書き可能セグメント32bit
+		MOV		DS,AX
+		MOV		ES,AX
+		MOV		FS,AX
+		MOV		GS,AX
+		MOV		SS,AX
+
+; bootpackの転送
+
+		MOV		ESI,bootpack	; 転送元
+		MOV		EDI,BOTPAK		; 転送先
+		MOV		ECX,512*1024/4
+		CALL	memcpy
+
+; ついでにディスクデータも本来の位置へ転送
+
+; まずはブートセクタから
+
+		MOV		ESI,0x7c00		; 転送元
+		MOV		EDI,DSKCAC		; 転送先
+		MOV		ECX,512/4
+		CALL	memcpy
+
+; 残り全部
+
+		MOV		ESI,DSKCAC0+512	; 転送元
+		MOV		EDI,DSKCAC+512	; 転送先
+		MOV		ECX,0
+		MOV		CL,BYTE [CYLS]
+		;MOV     CL,0x9
+		IMUL	ECX,512*18*2/4	; シリンダ数からバイト数/4に変換
+		SUB		ECX,512/4		; IPLの分だけ差し引く
+		CALL	memcpy
+
+; asmheadでしなければいけないことは全部し終わったので、
+;	あとはbootpackに任せる
+
+; bootpackの起動 ;修改原来作者?入bootpack的方法，?里需要解析elf
+
+		;MOV		EBX,BOTPAK
+		;MOV		ECX,[EBX+16]
+		;ADD		ECX,3			; ECX += 3;
+		;SHR		ECX,2			; ECX /= 4;
+		;JZ		skip			; 転送するべきものがない
+		;MOV		ESI,[EBX+20]	; 転送元
+		;ADD		ESI,EBX
+		;MOV		EDI,[EBX+12]	; 転送先
+		CALL		bootmain  ;?里会解析elf并把代??到0x280000，把数据?到0x310000
+skip:
+		;MOV		ESP,[EBX+12]	; スタック初期値
+		;JMP		DWORD 2*8:0x0000001b
+		MOV     	ESP,0x310000
+		MOV			EBP,0x0
+		;JMP		DWORD 2*8:0x0
+		JMP			0x280000  ;skip?一段?定好esp，ebp,然后跳?到0x280000?始?行
+
+;bootmain等同于下面的c程序
+;/* file header */
+;struct elfhdr {
+;    uint32_t e_magic;     // must equal ELF_MAGIC
+;    uint8_t e_elf[12];
+;    uint16_t e_type;      // 1=relocatable, 2=executable, 3=shared object, 4=core image
+;    uint16_t e_machine;   // 3=x86, 4=68K, etc.
+;    uint32_t e_version;   // file version, always 1
+;   uint32_t e_entry;     // entry point if executable
+;    uint32_t e_phoff;     // file position of program header or 0
+;    uint32_t e_shoff;     // file position of section header or 0
+;    uint32_t e_flags;     // architecture-specific flags, usually 0
+;    uint16_t e_ehsize;    // size of this elf header
+;    uint16_t e_phentsize; // size of an entry in program header
+;    uint16_t e_phnum;     // number of entries in program header or 0
+;    uint16_t e_shentsize; // size of an entry in section header
+;    uint16_t e_shnum;     // number of entries in section header or 0
+;    uint16_t e_shstrndx;  // section number that contains section name strings
+;};
+;
+;/* program section header */
+;struct proghdr {
+;    uint32_t p_type;   // loadable code or data, dynamic linking info,etc.
+;    uint32_t p_offset; // file offset of segment
+;    uint32_t p_va;     // virtual address to map segment
+;    uint32_t p_pa;     // physical address, not used
+;    uint32_t p_filesz; // size of segment in file
+;    uint32_t p_memsz;  // size of segment in memory (bigger if contains bss）
+;    uint32_t p_flags;  // read/write/execute bits
+;    uint32_t p_align;  // required alignment, invariably hardware page size
+;};
+;#define ELFHDR          ((struct elfhdr *)bootpack
+;static void *
+;memcpy2(void *dst, const void *src, size_t n) {
+;    const char *s = src;
+;    char *d = dst;
+;    while (n -- > 0) {
+;        *d ++ = *s ++;
+;    }
+;    return dst;
+;}
+;/* bootmain - the entry of bootloader */
+;void
+;bootmain(void) {
+;    if (ELFHDR->e_magic != ELF_MAGIC) {
+;        return ;
+;    }
+;
+;    struct proghdr *ph;
+;    // load each program segment
+;    ph = (struct proghdr *)((uintptr_t)ELFHDR + ELFHDR->e_phoff);
+;	memcpy2((void *)ph->p_va, (void *)ph->p_offset, ph->p_memsz);//代??入0x280000
+;	ph++;
+;	memcpy2((void *)ph->p_va, (void *)ph->p_offset, ph->p_memsz);//数据?入0x310000
+;}
+
+memcpy2:
+				push   ebp
+                mov    ebp,esp
+             	sub    esp,0x10
+             	mov    eax,DWORD [ebp+0xc]
+             	mov    DWORD [ebp-0x4],eax
+             	mov    eax,DWORD [ebp+0x8]
+             	mov    DWORD [ebp-0x8],eax
+                jmp    lable2b
+  lable14:             	mov    eax,DWORD [ebp-0x8]
+               	lea    edx,[eax+0x1]
+               	mov    DWORD [ebp-0x8],edx
+               	mov    edx,DWORD [ebp-0x4]
+               	lea    ecx,[edx+0x1]
+               	mov    DWORD [ebp-0x4],ecx
+               	movzx  edx,BYTE [edx]
+               	mov    BYTE [eax],dl
+  lable2b:	             	mov    eax,DWORD [ebp+0x10]
+              	lea    edx,[eax-0x1]
+              	mov    DWORD [ebp+0x10],edx
+              	test   eax,eax
+              	jne    lable14
+              	mov    eax,DWORD [ebp+0x8]
+              	leave  
+              	ret    
+
+bootmain:
+         push   ebp
+         mov    ebp,esp
+         sub    esp,0x1c
+         mov    eax,bootpack
+         mov    eax,DWORD [eax]
+         cmp    eax,0x464c457f
+         je     lable53
+         jmp    lablec3
+  lable53:       	mov    eax,bootpack
+       	mov    eax,DWORD [eax+0x1c]
+       	add    eax,bootpack
+       	mov    DWORD [ebp-0x4],eax
+       	mov    eax,DWORD [ebp-0x4]
+       	mov    ecx,DWORD [eax+0x14]
+       	mov    eax,DWORD [ebp-0x4]
+       	mov    eax,DWORD [eax+0x4]
+       	add    eax,bootpack
+       	mov    edx,eax
+       	mov    eax,DWORD [ebp-0x4]
+       	mov    eax,DWORD [eax+0x8]
+       	;add    eax,0x280000
+       	mov    DWORD [esp+0x8],ecx
+       	mov    DWORD [esp+0x4],edx
+       	mov    DWORD [esp],eax
+       	call   memcpy2
+       	add    DWORD [ebp-0x4],0x20
+       	mov    eax,DWORD [ebp-0x4]
+       	mov    ecx,DWORD [eax+0x14]
+       	mov    eax,DWORD [ebp-0x4]
+       	mov    eax,DWORD [eax+0x4]
+       	add    eax,bootpack
+       	mov    edx,eax
+       	mov    eax,DWORD [ebp-0x4]
+       	mov    eax,DWORD [eax+0x8]
+       	;add    eax,0x310000
+       	mov    DWORD [esp+0x8],ecx
+       	mov    DWORD [esp+0x4],edx
+       	mov    DWORD [esp],eax
+       	call   memcpy2
+  lablec3:	                   	leave  
+                   	ret    
+
+
+
+waitkbdout:
+		IN		 AL,0x64
+		AND		 AL,0x02
+		IN		 AL,0x60 		; から読み(受信バッファが悪さをしないように)
+		JNZ		waitkbdout		; ANDの結果が0でなければwaitkbdoutへ
+		RET
+
+memcpy:
+		MOV		EAX,[ESI]
+		ADD		ESI,4
+		MOV		[EDI],EAX
+		ADD		EDI,4
+		SUB		ECX,1
+		JNZ		memcpy			; 引き算した結果が0でなければmemcpyへ
+		RET
+; memcpyはアドレスサイズプリフィクスを入れ忘れなければ、ストリング命令でも書ける
+
+		ALIGNB	16
+GDT0:
+		RESB	8				; ヌルセレクタ
+		DW		0xffff,0x0000,0x9200,0x00cf	; 読み書き可能セグメント32bit
+		DW		0xffff,0x0000,0x9a00,0x00cf	; 実行可能セグメント32bit（bootpack用）
+		DW      0xffff,0x0000,0x9a00,0x004f ;???cs用，加?成功后就不用了
+
+		DW		0
+GDTR0:
+		DW		8*4-1
+		DD		GDT0
+
+		ALIGNB	16
+bootpack:

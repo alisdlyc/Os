@@ -1,0 +1,26 @@
+nasm -g naskfunc.nas -f elf32 -l obj/naskfunc.lst -o obj/naskfunc.o
+
+# nasm -g makefont.nas -f elf32 -l obj/makefont.lst -o obj/hankaku.o
+
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c hankaku.c -o obj/hankaku.o
+
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c bootpack.c -o obj/bootpack.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c graphic.c -o obj/graphic.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c dsctbl.c -o obj/dsctbl.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c int.c -o obj/int.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c fifo.c -o obj/fifo.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c keyboard.c -o obj/keyboard.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c mouse.c -o obj/mouse.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c memory.c -o obj/memory.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c sheet.c -o obj/sheet.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c timer.c -o obj/timer.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c mtask.c -o obj/mtask.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c window.c -o obj/window.o
+gcc  -fno-builtin -fno-PIC -Wall -Lobj/ -L. -l30day -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c console.c -o obj/console.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c file.c -o obj/file.o
+gcc  -fno-builtin -fno-PIC -Wall -ggdb -m32 -gstabs -nostdinc  -fno-stack-protector -nostdinc -Ilibs/ -c tek.c -o obj/tek.o
+
+ld -m elf_i386 -nostdlib -Lobj/ -L. -l30day -T tools/kernel.ld -o bin/bootpack.out  obj/hankaku.o obj/bootpack.o obj/naskfunc.o  obj/graphic.o obj/dsctbl.o obj/int.o obj/fifo.o obj/keyboard.o obj/mouse.o obj/memory.o obj/sheet.o obj/timer.o obj/mtask.o obj/window.o obj/console.o obj/file.o obj/tek.o ./lib30day.a
+
+objdump -S bin/bootpack.out > obj/bootpack.asm
+objdump -t bin/bootpack.out | sed '1,/SYMBOL TABLE/d; s/ .* / /; /^$/d' > obj/bootpack.sym
