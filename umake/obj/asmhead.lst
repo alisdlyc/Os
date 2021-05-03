@@ -325,10 +325,11 @@
    325 00000204 C3                      		RET
    326                                  ; memcpyはアドレスサイズプリフィクスを入れ忘れなければ、ストリング命令でも書ける
    327                                  
-   328 00000205 <res Bh>                		ALIGNB	16
+   328 00000205 <res 0000000B>          		ALIGNB	16
+   328          ******************       warning: uninitialized space declared in non-BSS section `.text': zeroing [-w+other]
    329                                  GDT0:
-   330 00000210 ????????????????        		RESB	8				; ヌルセレクタ
-   330          ******************       warning: uninitialized space declared in non-BSS section `.text': zeroing [-w+zeroing]
+   330 00000210 <res 00000008>          		RESB	8				; ヌルセレクタ
+   330          ******************       warning: uninitialized space declared in non-BSS section `.text': zeroing [-w+other]
    331 00000218 FFFF00000092CF00        		DW		0xffff,0x0000,0x9200,0x00cf	; 読み書き可能セグメント32bit
    332 00000220 FFFF0000009ACF00        		DW		0xffff,0x0000,0x9a00,0x00cf	; 実行可能セグメント32bit（bootpack用）
    333 00000228 FFFF0000009A4F00        		DW      0xffff,0x0000,0x9a00,0x004f ;???cs用，加?成功后就不用了
@@ -338,5 +339,6 @@
    337 00000232 1F00                    		DW		8*4-1
    338 00000234 [10020000]              		DD		GDT0
    339                                  
-   340 00000238 ????????????????        		ALIGNB	16
+   340 00000238 <res 00000008>          		ALIGNB	16
+   340          ******************       warning: uninitialized space declared in non-BSS section `.text': zeroing [-w+other]
    341                                  bootpack:
