@@ -52,6 +52,10 @@ haribote.sys : asmhead.bin bootpack.hrb Makefile
 hello.hrb : hello.nas Makefile
 	$(NASK) hello.nas hello.hrb hello.lst
 
+pv.hrb : pv.nas Makefile
+	$(NASK) pv.nas pv.hrb pv.lst
+
+
 hello2.hrb : hello2.nas Makefile
 	$(NASK) hello2.nas hello2.hrb hello2.lst
 
@@ -107,7 +111,7 @@ winhelo2.hrb : winhelo2.bim Makefile
 	$(BIM2HRB) winhelo2.bim winhelo2.hrb 0
 
 haribote.img : ipl10.bin haribote.sys Makefile \
-		hello.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
+		hello.hrb pv.hrb hello2.hrb a.hrb hello3.hrb hello4.hrb hello5.hrb \
 		winhelo.hrb winhelo2.hrb
 	$(EDIMG)   imgin:../z_tools/fdimg0at.tek \
 		wbinimg src:ipl10.bin len:512 from:0 to:0 \
@@ -115,6 +119,7 @@ haribote.img : ipl10.bin haribote.sys Makefile \
 		copy from:ipl10.nas to:@: \
 		copy from:make.bat to:@: \
 		copy from:hello.hrb to:@: \
+		copy from:pv.hrb to:@: \
 		copy from:hello2.hrb to:@: \
 		copy from:a.hrb to:@: \
 		copy from:hello3.hrb to:@: \

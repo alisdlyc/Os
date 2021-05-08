@@ -22,14 +22,14 @@ void console_task(struct SHEET *sheet, unsigned int memtotal)
 	timer = timer_alloc();
 	timer_init(timer, &task->fifo, 1);
 	timer_settime(timer, 50);
-	file_readfat(fat, (unsigned char *) (ADR_DISKIMG + 0x000200)); 
+	file_readfat(fat, (unsigned char *) (ADR_DISKIMG + 0x000200));
 
 	/*显示提示符*/
 	cons_putchar(&cons, '>', 1);
 	for (;;) {
 		io_cli();
 		if (fifo32_status(&task->fifo) == 0) {
-			task_sleep(task);  
+			task_sleep(task);
 			io_sti();
 		} else {
 			i = fifo32_get(&task->fifo);
@@ -164,6 +164,17 @@ void cons_putstr1(struct CONSOLE *cons, char *s, int l)
 	return;
 }
 
+// 定义pv操作的的实现, p操作（wait）、v操作（signal）
+void wait(int S) {
+    while (S <= 0);
+    S--;
+}
+
+void signal(int S) {
+    S++;
+}
+
+
 void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, unsigned int memtotal)
 {
 	if (strcmp(cmdline, "mem") == 0) {
@@ -242,7 +253,7 @@ void cmd_type(struct CONSOLE *cons, int *fat, char *cmdline)
 		p = (char *) memman_alloc_4k(memman, finfo->size);
 		file_loadfile(finfo->clustno, finfo->size, p, fat, (char *) (ADR_DISKIMG + 0x003e00));
 		cons_putstr1(cons, p, finfo->size);
-		memman_free_4k(memman, (int) p, finfo->size); 
+		memman_free_4k(memman, (int) p, finfo->size);
 	} else {
 		/*没有找到文件的情况*/
 		cons_putstr0(cons, "File not found.\n");
@@ -335,7 +346,7 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		make_window8((char *) ebx + ds_base, esi, edi, (char *) ecx + ds_base, 0);
 		sheet_slide(sht, 100, 50);
 		sheet_updown(sht, 3); /*背景层高度3位于task_a之上*/
-		reg[7] = (int) sht; 
+		reg[7] = (int) sht;
 	} else if (edx == 6) {
 		sht = (struct SHEET *) ebx;
 		putfonts8_asc(sht->buf, sht->bxsize, esi, edi, eax, (char *) ebp + ds_base);
@@ -344,6 +355,10 @@ int *hrb_api(int edi, int esi, int ebp, int esp, int ebx, int edx, int ecx, int 
 		sht = (struct SHEET *) ebx;
 		boxfill8(sht->buf, sht->bxsize, ebp, eax, ecx, esi, edi);
 		sheet_refresh(sht, eax, ecx, esi + 1, edi + 1);
+	} else if (edx == 8) {
+		wait(ebx);
+	} else if (edx == 9) {
+		signal(ebx);
 	}
 	return 0;
 }
