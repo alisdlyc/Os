@@ -1,0 +1,245 @@
+     1 00000000                                 [FORMAT "WCOFF"]			; 生成对象文件的模式
+     2 00000000                                 [INSTRSET "i486p"]		; 表示使用486兼容指令集
+     3 00000000                                 [BITS 32]							; 生成32位模式机器语言
+     4 00000000                                 [FILE "a_nask.nas"]		; 源文件名信息
+     5 00000000                                 
+     6 00000000                                 		GLOBAL	_api_putchar
+     7 00000000                                 		GLOBAL	_api_putstr0
+     8 00000000                                 		GLOBAL	_api_end
+     9 00000000                                 		GLOBAL	_api_openwin
+    10 00000000                                 		GLOBAL	_api_putstrwin
+    11 00000000                                 		GLOBAL	_api_boxfilwin
+    12 00000000                                 		GLOBAL	_api_initmalloc
+    13 00000000                                 		GLOBAL	_api_malloc
+    14 00000000                                 		GLOBAL	_api_free
+    15 00000000                                 		GLOBAL	_api_point
+    16 00000000                                 		GLOBAL	_api_refreshwin
+    17 00000000                                 		GLOBAL	_api_linewin
+    18 00000000                                 		GLOBAL	_api_closewin
+    19 00000000                                 		GLOBAL	_api_getkey
+    20 00000000                                 		GLOBAL	_api_alloctimer
+    21 00000000                                 		GLOBAL	_api_inittimer
+    22 00000000                                 		GLOBAL	_api_settimer
+    23 00000000                                 		GLOBAL	_api_freetimer
+    24 00000000                                 		GLOBAL	_api_beep
+    25 00000000                                 		GLOBAL	_api_wait
+    26 00000000                                 		GLOBAL	_api_signal
+    27 00000000                                 
+    28                                          [SECTION .text]
+    29 00000000                                 
+    30 00000000                                 _api_putchar:	; void api_putchar(int c);
+    31 00000000 BA 00000001                     		MOV		EDX,1
+    32 00000005 8A 44 24 04                     		MOV		AL,[ESP+4]		; c
+    33 00000009 CD 40                           		INT		0x40
+    34 0000000B C3                              		RET
+    35 0000000C                                 
+    36 0000000C                                 _api_putstr0:	; void api_putstr0(char *s);
+    37 0000000C 53                              		PUSH	EBX
+    38 0000000D BA 00000002                     		MOV		EDX,2
+    39 00000012 8B 5C 24 08                     		MOV		EBX,[ESP+8]		; s
+    40 00000016 CD 40                           		INT		0x40
+    41 00000018 5B                              		POP		EBX
+    42 00000019 C3                              		RET
+    43 0000001A                                 
+    44 0000001A                                 _api_end: ; void api_end(void); 
+    45 0000001A BA 00000004                     		MOV			EDX,4
+    46 0000001F CD 40                           		INT			0x40
+    47 00000021                                 
+    48 00000021                                 _api_openwin:	; int api_openwin(char *buf, int xsiz, int ysiz, int col_inv, char *title);
+    49 00000021 57                              		PUSH	EDI
+    50 00000022 56                              		PUSH	ESI
+    51 00000023 53                              		PUSH	EBX
+    52 00000024 BA 00000005                     		MOV		EDX,5
+    53 00000029 8B 5C 24 10                     		MOV		EBX,[ESP+16]	; buf
+    54 0000002D 8B 74 24 14                     		MOV		ESI,[ESP+20]	; xsiz
+    55 00000031 8B 7C 24 18                     		MOV		EDI,[ESP+24]	; ysiz
+    56 00000035 8B 44 24 1C                     		MOV		EAX,[ESP+28]	; col_inv
+    57 00000039 8B 4C 24 20                     		MOV		ECX,[ESP+32]	; title
+    58 0000003D CD 40                           		INT		0x40
+    59 0000003F 5B                              		POP		EBX
+    60 00000040 5E                              		POP		ESI
+    61 00000041 5F                              		POP		EDI
+    62 00000042 C3                              		RET
+    63 00000043                                 
+    64 00000043                                 _api_putstrwin:	; void api_putstrwin(int win, int x, int y, int col, int len, char *str);
+    65 00000043 57                              		PUSH	EDI
+    66 00000044 56                              		PUSH	ESI
+    67 00000045 55                              		PUSH	EBP
+    68 00000046 53                              		PUSH	EBX
+    69 00000047 BA 00000006                     		MOV		EDX,6
+    70 0000004C 8B 5C 24 14                     		MOV		EBX,[ESP+20]	; win
+    71 00000050 8B 74 24 18                     		MOV		ESI,[ESP+24]	; x
+    72 00000054 8B 7C 24 1C                     		MOV		EDI,[ESP+28]	; y
+    73 00000058 8B 44 24 20                     		MOV		EAX,[ESP+32]	; col
+    74 0000005C 8B 4C 24 24                     		MOV		ECX,[ESP+36]	; len
+    75 00000060 8B 6C 24 28                     		MOV		EBP,[ESP+40]	; str
+    76 00000064 CD 40                           		INT		0x40
+    77 00000066 5B                              		POP		EBX
+    78 00000067 5D                              		POP		EBP
+    79 00000068 5E                              		POP		ESI
+    80 00000069 5F                              		POP		EDI
+    81 0000006A C3                              		RET
+    82 0000006B                                 
+    83 0000006B                                 _api_boxfilwin:	; void api_boxfilwin(int win, int x0, int y0, int x1, int y1, int col);
+    84 0000006B 57                              		PUSH	EDI
+    85 0000006C 56                              		PUSH	ESI
+    86 0000006D 55                              		PUSH	EBP
+    87 0000006E 53                              		PUSH	EBX
+    88 0000006F BA 00000007                     		MOV		EDX,7
+    89 00000074 8B 5C 24 14                     		MOV		EBX,[ESP+20]	; win
+    90 00000078 8B 44 24 18                     		MOV		EAX,[ESP+24]	; x0
+    91 0000007C 8B 4C 24 1C                     		MOV		ECX,[ESP+28]	; y0
+    92 00000080 8B 74 24 20                     		MOV		ESI,[ESP+32]	; x1
+    93 00000084 8B 7C 24 24                     		MOV		EDI,[ESP+36]	; y1
+    94 00000088 8B 6C 24 28                     		MOV		EBP,[ESP+40]	; col
+    95 0000008C CD 40                           		INT		0x40
+    96 0000008E 5B                              		POP		EBX
+    97 0000008F 5D                              		POP		EBP
+    98 00000090 5E                              		POP		ESI
+    99 00000091 5F                              		POP		EDI
+   100 00000092 C3                              		RET
+   101 00000093                                 
+   102 00000093                                 _api_initmalloc:	; void api_initmalloc(void);
+   103 00000093 53                              		PUSH	EBX
+   104 00000094 BA 00000008                     		MOV		EDX,8
+   105 00000099 2E 8B 1D 00000020               		MOV		EBX,[CS:0x0020]		; malloc内存空间的地址
+   106 000000A0 89 D8                           		MOV		EAX,EBX
+   107 000000A2 05 00008000                     		ADD		EAX,32*1024				; 加上32KB
+   108 000000A7 2E 8B 0D 00000000               		MOV		ECX,[CS:0x0000]		; 数据段的大小
+   109 000000AE 29 C1                           		SUB		ECX,EAX
+   110 000000B0 CD 40                           		INT		0x40
+   111 000000B2 5B                              		POP		EBX
+   112 000000B3 C3                              		RET
+   113 000000B4                                 
+   114 000000B4                                 _api_malloc:		; char *api_malloc(int size);
+   115 000000B4 53                              		PUSH	EBX
+   116 000000B5 BA 00000009                     		MOV		EDX,9
+   117 000000BA 2E 8B 1D 00000020               		MOV		EBX,[CS:0x0020]
+   118 000000C1 8B 4C 24 08                     		MOV		ECX,[ESP+8]			; size
+   119 000000C5 CD 40                           		INT		0x40
+   120 000000C7 5B                              		POP		EBX
+   121 000000C8 C3                              		RET
+   122 000000C9                                 
+   123 000000C9                                 _api_free:			; void api_free(char *addr, int size);
+   124 000000C9 53                              		PUSH	EBX
+   125 000000CA BA 0000000A                     		MOV		EDX,10
+   126 000000CF 2E 8B 1D 00000020               		MOV		EBX,[CS:0x0020]
+   127 000000D6 8B 44 24 08                     		MOV		EAX,[ESP+ 8]		; addr
+   128 000000DA 8B 4C 24 0C                     		MOV		ECX,[ESP+12]		; size
+   129 000000DE CD 40                           		INT		0x40
+   130 000000E0 5B                              		POP		EBX
+   131 000000E1 C3                              		RET
+   132 000000E2                                 
+   133 000000E2                                 _api_point:		; void api_point(int win, int x, int y, int col);
+   134 000000E2 57                              		PUSH	EDI
+   135 000000E3 56                              		PUSH	ESI
+   136 000000E4 53                              		PUSH	EBX
+   137 000000E5 BA 0000000B                     		MOV		EDX,11
+   138 000000EA 8B 5C 24 10                     		MOV		EBX,[ESP+16]	; win
+   139 000000EE 8B 74 24 14                     		MOV		ESI,[ESP+20]	; x
+   140 000000F2 8B 7C 24 18                     		MOV		EDI,[ESP+24]	; y
+   141 000000F6 8B 44 24 1C                     		MOV		EAX,[ESP+28]	; col
+   142 000000FA CD 40                           		INT		0x40
+   143 000000FC 5B                              		POP		EBX
+   144 000000FD 5E                              		POP		ESI
+   145 000000FE 5F                              		POP		EDI
+   146 000000FF C3                              		RET
+   147 00000100                                 
+   148 00000100                                 _api_refreshwin:	; void api_refreshwin(int win, int x0, int y0, int x1, int y1);
+   149 00000100 57                              		PUSH	EDI
+   150 00000101 56                              		PUSH	ESI
+   151 00000102 53                              		PUSH	EBX
+   152 00000103 BA 0000000C                     		MOV		EDX,12
+   153 00000108 8B 5C 24 10                     		MOV		EBX,[ESP+16]	; win
+   154 0000010C 8B 44 24 14                     		MOV		EAX,[ESP+20]	; x0
+   155 00000110 8B 4C 24 18                     		MOV		ECX,[ESP+24]	; y0
+   156 00000114 8B 74 24 1C                     		MOV		ESI,[ESP+28]	; x1
+   157 00000118 8B 7C 24 20                     		MOV		EDI,[ESP+32]	; y1
+   158 0000011C CD 40                           		INT		0x40
+   159 0000011E 5B                              		POP		EBX
+   160 0000011F 5E                              		POP		ESI
+   161 00000120 5F                              		POP		EDI
+   162 00000121 C3                              		RET
+   163 00000122                                 
+   164 00000122                                 _api_linewin:		; void api_linewin(int win, int x0, int y0, int x1, int y1, int col);
+   165 00000122 57                              		PUSH	EDI
+   166 00000123 56                              		PUSH	ESI
+   167 00000124 55                              		PUSH	EBP
+   168 00000125 53                              		PUSH	EBX
+   169 00000126 BA 0000000D                     		MOV		EDX,13
+   170 0000012B 8B 5C 24 14                     		MOV		EBX,[ESP+20]	; win
+   171 0000012F 8B 44 24 18                     		MOV		EAX,[ESP+24]	; x0
+   172 00000133 8B 4C 24 1C                     		MOV		ECX,[ESP+28]	; y0
+   173 00000137 8B 74 24 20                     		MOV		ESI,[ESP+32]	; x1
+   174 0000013B 8B 7C 24 24                     		MOV		EDI,[ESP+36]	; y1
+   175 0000013F 8B 6C 24 28                     		MOV		EBP,[ESP+40]	; col
+   176 00000143 CD 40                           		INT		0x40
+   177 00000145 5B                              		POP		EBX
+   178 00000146 5D                              		POP		EBP
+   179 00000147 5E                              		POP		ESI
+   180 00000148 5F                              		POP		EDI
+   181 00000149 C3                              		RET
+   182 0000014A                                 
+   183 0000014A                                 _api_closewin:		; void api_closewin(int win);
+   184 0000014A 53                              		PUSH	EBX
+   185 0000014B BA 0000000E                     		MOV		EDX,14
+   186 00000150 8B 5C 24 08                     		MOV		EBX,[ESP+8]	; win
+   187 00000154 CD 40                           		INT		0x40
+   188 00000156 5B                              		POP		EBX
+   189 00000157 C3                              		RET
+   190 00000158                                 
+   191 00000158                                 _api_getkey:		; int api_getkey(int mode);
+   192 00000158 BA 0000000F                     		MOV		EDX,15
+   193 0000015D 8B 44 24 04                     		MOV		EAX,[ESP+4]	; mode
+   194 00000161 CD 40                           		INT		0x40
+   195 00000163 C3                              		RET
+   196 00000164                                 
+   197 00000164                                 _api_alloctimer:	; int api_alloctimer(void);
+   198 00000164 BA 00000010                     		MOV		EDX,16
+   199 00000169 CD 40                           		INT		0x40
+   200 0000016B C3                              		RET
+   201 0000016C                                 
+   202 0000016C                                 _api_inittimer:		; void api_inittimer(int timer, int data);
+   203 0000016C 53                              		PUSH	EBX
+   204 0000016D BA 00000011                     		MOV		EDX,17
+   205 00000172 8B 5C 24 08                     		MOV		EBX,[ESP+ 8]		; timer
+   206 00000176 8B 44 24 0C                     		MOV		EAX,[ESP+12]		; data
+   207 0000017A CD 40                           		INT		0x40
+   208 0000017C 5B                              		POP		EBX
+   209 0000017D C3                              		RET
+   210 0000017E                                 
+   211 0000017E                                 _api_settimer:		; void api_settimer(int timer, int time);
+   212 0000017E 53                              		PUSH	EBX
+   213 0000017F BA 00000012                     		MOV		EDX,18
+   214 00000184 8B 5C 24 08                     		MOV		EBX,[ESP+ 8]		; timer
+   215 00000188 8B 44 24 0C                     		MOV		EAX,[ESP+12]		; time
+   216 0000018C CD 40                           		INT		0x40
+   217 0000018E 5B                              		POP		EBX
+   218 0000018F C3                              		RET
+   219 00000190                                 
+   220 00000190                                 _api_freetimer:		; void api_freetimer(int timer);
+   221 00000190 53                              		PUSH	EBX
+   222 00000191 BA 00000013                     		MOV		EDX,19
+   223 00000196 8B 5C 24 08                     		MOV		EBX,[ESP+ 8]		; timer
+   224 0000019A CD 40                           		INT		0x40
+   225 0000019C 5B                              		POP		EBX
+   226 0000019D C3                              		RET
+   227 0000019E                                 
+   228 0000019E                                 _api_beep:			; void api_beep(int tone);
+   229 0000019E BA 00000014                     		MOV		EDX,20
+   230 000001A3 8B 44 24 04                     		MOV		EAX,[ESP+4]			; tone
+   231 000001A7 CD 40                           		INT		0x40
+   232 000001A9 C3                              		RET
+   233 000001AA                                 
+   234 000001AA                                 _api_wait:			; int api_wait(int S);
+   235 000001AA BA 00000015                     		MOV		EDX,21
+   236 000001AF 8A 44 24 04                     		MOV		AL,[ESP+4]		; S
+   237 000001B3 CD 40                           		INT		0x40
+   238 000001B5 C3                              		RET
+   239 000001B6                                 
+   240 000001B6                                 
+   241 000001B6                                 _api_signal:		; int api_signal(int S);
+   242 000001B6 BA 00000016                     		MOV		EDX,22
+   243 000001BB 8A 44 24 04                     		MOV		AL,[ESP+4]		; S
+   244 000001BF CD 40                           		INT		0x40
+   245 000001C1 C3                              		RET

@@ -1,0 +1,41 @@
+     1 00000000                                 [FORMAT "WCOFF"]
+     2 00000000                                 [INSTRSET "i486p"]
+     3 00000000                                 [OPTIMIZE 1]
+     4 00000000                                 [OPTION 1]
+     5 00000000                                 [BITS 32]
+     6 00000000                                 	EXTERN	_sprintf
+     7 00000000                                 	EXTERN	_api_putstr0
+     8 00000000                                 	EXTERN	_api_end
+     9 00000000                                 [FILE "compete.c"]
+    10 00000000                                 	GLOBAL	_common
+    11                                          [SECTION .data]
+    12 00000000                                 	ALIGNB	4
+    13 00000000                                 _common:
+    14 00000000 00000000                        	DD	0
+    15 00000004                                 	GLOBAL	_process_com
+    16 00000004                                 	ALIGNB	4
+    17 00000004                                 _process_com:
+    18 00000004 00000000                        	DD	0
+    19 00000008                                 LC0:
+    20 00000008 43 6F 6D 70 65 74 65 21 20 25   	DB	"Compete! %d",0x00
+       00000012 64 00 
+    21                                          [SECTION .text]
+    22 00000000                                 	GLOBAL	_HariMain
+    23 00000000                                 _HariMain:
+    24 00000000 55                              	PUSH	EBP
+    25 00000001 89 E5                           	MOV	EBP,ESP
+    26 00000003 53                              	PUSH	EBX
+    27 00000004 83 EC 40                        	SUB	ESP,64
+    28 00000007 A1 [00000000]                   	MOV	EAX,DWORD [_common]
+    29 0000000C 8D 5D BC                        	LEA	EBX,DWORD [-68+EBP]
+    30 0000000F 40                              	INC	EAX
+    31 00000010 50                              	PUSH	EAX
+    32 00000011 68 [00000008]                   	PUSH	LC0
+    33 00000016 53                              	PUSH	EBX
+    34 00000017 E8 [00000000]                   	CALL	_sprintf
+    35 0000001C 53                              	PUSH	EBX
+    36 0000001D E8 [00000000]                   	CALL	_api_putstr0
+    37 00000022 E8 [00000000]                   	CALL	_api_end
+    38 00000027 8B 5D FC                        	MOV	EBX,DWORD [-4+EBP]
+    39 0000002A C9                              	LEAVE
+    40 0000002B C3                              	RET
