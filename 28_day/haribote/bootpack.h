@@ -14,8 +14,8 @@ struct BOOTINFO { /* 0x0ff0-0x0fff */
  * @description: 文件控制块
  */
  struct FCB {
-    char filename[9];
-    char exname[4];
+    char *filename;
+    char *exname;
     unsigned char attribute;        // 0: 目录文件，1: 普通文件
     unsigned long length;           // 文件占用数据块数量
   	char *first;			// 文件的起始地址
