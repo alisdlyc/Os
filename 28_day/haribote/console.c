@@ -346,7 +346,7 @@ void cmd_langmode(struct CONSOLE *cons, char *cmdline)
 }
 
 // create filename . filetype
-FCB *create_file(struct CONSOLE *cons, char *cmdline) {
+FCB create_file(struct CONSOLE *cons, char *cmdline) {
 	struct TASK *task = task_now();
 	int dotFlag = 0;
 	int i;
