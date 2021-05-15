@@ -3,7 +3,6 @@
 #include "bootpack.h"
 #include <stdio.h>
 #include <string.h>
-#include "fcb.h"
 
 void console_task(struct SHEET *sheet, int memtotal)
 {

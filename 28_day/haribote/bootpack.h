@@ -10,6 +10,19 @@ struct BOOTINFO { /* 0x0ff0-0x0fff */
 #define ADR_BOOTINFO	0x00000ff0
 #define ADR_DISKIMG		0x00100000
 
+/**
+ * @description: 文件控制块
+ */
+ struct FCB {
+    char filename[9];
+    char exname[4];
+    unsigned char attribute;        // 0: 目录文件，1: 普通文件
+    unsigned long length;           // 文件占用数据块数量
+  	char *first;			// 文件的起始地址
+    char free;                      // 1 表示有效，0 表示空闲
+};
+
+
 /* naskfunc.nas */
 void io_hlt(void);
 void io_cli(void);
