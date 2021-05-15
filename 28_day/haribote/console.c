@@ -3,6 +3,7 @@
 #include "bootpack.h"
 #include <stdio.h>
 #include <string.h>
+#include "fcb.h"
 
 void console_task(struct SHEET *sheet, int memtotal)
 {
@@ -74,7 +75,7 @@ void console_task(struct SHEET *sheet, int memtotal)
 				}
 				cons.cur_c = -1;
 			}
-			if (i == 4) { /*点击命令行窗口的“×”按钮*/ 
+			if (i == 4) { /*点击命令行窗口的“×”按钮*/
 				cmd_exit(&cons, fat);
 			}
 			if (256 <= i && i <= 511) { /*键盘数据（通过任务A）*/
@@ -109,7 +110,7 @@ void console_task(struct SHEET *sheet, int memtotal)
 			/*重新显示光标*/
 			if (cons.sht != 0) {
 				if (cons.cur_c >= 0) {
-					boxfill8(cons.sht->buf, cons.sht->bxsize, cons.cur_c, 
+					boxfill8(cons.sht->buf, cons.sht->bxsize, cons.cur_c,
 						cons.cur_x, cons.cur_y, cons.cur_x + 7, cons.cur_y + 15);
 				}
 				sheet_refresh(cons.sht, cons.cur_x, cons.cur_y, cons.cur_x + 8, cons.cur_y + 16);
@@ -218,7 +219,9 @@ void cons_runcmd(char *cmdline, struct CONSOLE *cons, int *fat, int memtotal)
 		cmd_ncst(cons, cmdline, memtotal);
 	} else if (strncmp(cmdline, "langmode ", 9) == 0) {
 		cmd_langmode(cons, cmdline);
-	}else if (cmdline[0] != 0) {
+	} else if (strncmp(cmdline, "create ", 7) == 0) {
+		create_file(cons, cmdline);
+	} else if (cmdline[0] != 0) {
 		if (cmd_app(cons, fat, cmdline) == 0) {
 			/*不是命令，不是应用程序，也不是空行*/
 			cons_putstr0(cons, "Bad command.\n\n");
@@ -343,6 +346,34 @@ void cmd_langmode(struct CONSOLE *cons, char *cmdline)
 	return;
 }
 
+// create filename . filetype
+FCB *create_file(struct CONSOLE *cons, char *cmdline) {
+	struct TASK *task = task_now();
+	int dotFlag = 0;
+	int i;
+	for (i = 7; cmdline[i] != 0; i++) {
+		if(cmdline[i] == '.') {
+			dotFlag = i;
+		}
+	}
+	cmdline[dotFlag] = '0';
+	// 7 ~ dotFlag --> filename
+	// dotFlag ~ i --> filetype
+	char *filename = cmdline[7];
+	char *filetype = cmdline[i];
+
+	struct FCB file;
+	file.filename = fileName;
+	file.exname = filetype;
+	file.attribute = 1;
+	file.length = 1;
+	api_initmalloc();
+	file.first = api_malloc(1024);
+	file.free = 1;
+	api_end();
+	return file;
+}
+
 int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 {
 	struct MEMMAN *memman = (struct MEMMAN *) MEMMAN_ADDR;
@@ -387,7 +418,7 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 			q = (char *) memman_alloc_4k(memman, segsiz);
 			task->ds_base = (int) q;
 			set_segmdesc(task->ldt + 0, finfo->size - 1, (int) p, AR_CODE32_ER + 0x60);
-			set_segmdesc(task->ldt + 1, segsiz - 1, (int) q, AR_DATA32_RW + 0x60); 
+			set_segmdesc(task->ldt + 1, segsiz - 1, (int) q, AR_DATA32_RW + 0x60);
 			for (i = 0; i < datsiz; i++) {
 				q[esp + i] = p[dathrb + i];
 			}
@@ -400,7 +431,7 @@ int cmd_app(struct CONSOLE *cons, int *fat, char *cmdline)
 					sheet_free(sht); /*关闭*/
 				}
 			}
-			for (i = 0; i < 8; i++) { /*将未关闭的文件关闭*/ 
+			for (i = 0; i < 8; i++) { /*将未关闭的文件关闭*/
 				if (task->fhandle[i].buf != 0) {
 					memman_free_4k(memman, (int) task->fhandle[i].buf, task->fhandle[i].size);
 					task->fhandle[i].buf = 0;
